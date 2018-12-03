@@ -1,0 +1,557 @@
+---
+title: "Feature Engineering4"
+author: "Yu Dong"
+date: "10/1/2018"
+output: html_document
+---
+
+```{r load package and data}
+library(tidyverse)
+library(caret)
+library(stringr)
+
+load('input/new_feature3.RData')
+```
+
+
+```{r data summary}
+names(all_data)
+
+summary(all_data)
+```
+
+clean categorical variables with to many levels
+
+
+```{r desize}
+
+## decrease the levels of categorical variables with > 10 levels
+
+#### os
+sum_os = all_data %>%
+    filter(set == 'train') %>%
+    group_by(operatingSystem) %>%
+    summarise(count = n(),
+              avg_revenue = mean(transactionRevenue))
+
+all_data$OS_new = ifelse(
+    all_data$operatingSystem == 'Windows',
+    'Windows',
+    ifelse(all_data$operatingSystem == 'Macintosh',
+           'Macintosh',
+           ifelse(all_data$operatingSystem == 'Android',
+                  'Android',
+                  ifelse(all_data$operatingSystem == 'iOS',
+                         'iOS',
+                         ifelse(all_data$operatingSystem == 'Linux',
+                                'Linux',
+                        ifelse(all_data$operatingSystem == 'Chrome OS',
+                                'Chrome OS',
+                        ifelse(all_data$operatingSystem == 'Windows Phone',
+                                'Windows Phone', 'Others')))))))
+
+all_data$OS_new = as.factor(all_data$OS_new)
+all_data$operatingSystem = NULL
+rm(sum_os)
+
+
+#### browser
+
+sum_browser = all_data %>%
+    filter(set == 'train') %>%
+    group_by(browser) %>%
+    summarise(count = n(),
+              avg_revenue = mean(transactionRevenue))
+
+
+all_data$browser_new = ifelse(
+    all_data$browser == 'Chrome',
+    'Chrome',
+    ifelse(all_data$browser == 'Safari',
+           'Safari',
+           ifelse(all_data$browser == 'Firefox',
+                  'Firefox',
+                  ifelse(all_data$browser == 'Internet Explorer',
+                         'Internet Explorer',
+                         ifelse(all_data$browser == 'Edge',
+                                'Edge',
+                        ifelse(all_data$browser == 'Android Webview',
+                                'Android Webview',
+                        ifelse(all_data$browser == 'Safari (in-app)',
+                                'Safari (in-app)', 
+                        ifelse(all_data$browser == 'Opera',
+                                'Opera', 'Others'))))))))
+
+
+all_data$browser_new = as.factor(all_data$browser_new)
+all_data$browser = NULL
+rm(sum_browser)
+
+
+#### metro
+
+sum_metro = all_data %>%
+    filter(set == 'train') %>%
+    group_by(metro) %>%
+    summarise(count = n(),
+              avg_revenue = mean(transactionRevenue))
+
+
+all_data$metro_new = ifelse(
+    all_data$metro == 'San Francisco-Oakland-San Jose CA',
+    'Bay Area',
+    ifelse(all_data$metro == 'New York NY',
+           'New York NY',
+           ifelse(all_data$metro == 'London',
+                  'London',
+                  ifelse(all_data$metro == 'Los Angeles CA',
+                         'Los Angeles CA',
+                         ifelse(all_data$metro == 'Seattle-Tacoma WA',
+                                'Seattle-Tacoma WA',
+                        ifelse(all_data$metro == 'Chicago IL',
+                                'Chicago IL',
+                        ifelse(all_data$metro == 'Austin TX',
+                                'Austin TX', 
+                        ifelse(all_data$metro == 'Washington DC (Hagerstown MD)',
+                                'DC',
+                        ifelse(all_data$metro == 'Boston MA-Manchester NH',
+                                'Boston MA-Manchester NH',
+                        ifelse(all_data$metro == 'Houston TX',
+                                'Houston TX',
+                        ifelse(all_data$metro == 'Atlanta GA',
+                                'Atlanta GA',
+                        ifelse(all_data$metro == 'Detroit MI',
+                                'Detroit MI',
+                        ifelse(all_data$metro == 'Roanoke-Lynchburg VA',
+                                'Roanoke-Lynchburg VA',
+                        ifelse(all_data$metro == 'Dallas-Ft. Worth TX',
+                                'Dallas-Ft. Worth TX',
+                        ifelse(all_data$metro == 'San Diego CA',
+                                'San Diego CA',                                                    ifelse(all_data$metro == 'Portland OR',
+                                'Portland OR',   
+                        ifelse(all_data$metro == 'Pittsburgh PA',
+                                'Pittsburgh PA','Others')))))))))))))))))
+
+
+all_data$metro_new = as.factor(all_data$metro_new)
+all_data$metro = NULL
+all_data$city = NULL
+all_data$region = NULL
+rm(sum_metro)
+
+
+#### country
+
+sum_country = all_data %>%
+    filter(set == 'train') %>%
+    group_by(country) %>%
+    summarise(count = n(),
+              avg_revenue = mean(transactionRevenue))
+
+
+all_data$country_new = ifelse(
+    all_data$country == 'United States',
+    'United States',
+    ifelse(all_data$country == 'India',
+           'India',
+           ifelse(all_data$country == 'United Kingdom',
+                  'United Kingdom',
+                  ifelse(all_data$country == 'Canada',
+                         'Canada',
+                         ifelse(all_data$country == 'Vietnam',
+                                'Vietnam',
+                        ifelse(all_data$country == 'Turkey',
+                                'Turkey',
+                        ifelse(all_data$country == 'Thailand',
+                                'Thailand', 
+                        ifelse(all_data$country == 'Germany',
+                                'Germany',
+                        ifelse(all_data$country == 'Brazil',
+                                'Brazil',
+                        ifelse(all_data$country == 'Japan',
+                                'Japan',
+                        ifelse(all_data$country == 'France',
+                                'France',
+                        ifelse(all_data$country == 'Mexico',
+                                'Mexico',
+                        ifelse(all_data$country == 'Taiwan',
+                                'Taiwan',
+                        ifelse(all_data$country == 'Australia',
+                                'Australia',
+                        ifelse(all_data$country == 'Russia',
+                                'Russia',                                                                 ifelse(all_data$country == 'Spain',
+                                'Spain',   
+                        ifelse(all_data$country == 'Netherlands',
+                                'Netherlands',
+                        ifelse(all_data$country == 'Mexico',
+                                'Mexico',
+                        ifelse(all_data$country == 'Italy',
+                                'Italy',
+                        ifelse(all_data$country == 'Poland',
+                                'Poland',
+                        ifelse(all_data$country == 'Indonesia',
+                                'Indonesia',                                                              ifelse(all_data$country == 'Philippines',
+                                'Philippines',                                  
+                        ifelse(all_data$country == 'Singapore',
+                                'Singapore',     
+                         ifelse(all_data$country == 'Ireland',
+                                'Ireland', 'Others'))))))))))))))))))))))))
+
+
+all_data$country_new = as.factor(all_data$country_new)
+all_data$country = NULL
+rm(sum_country)
+
+
+#### network domain
+
+sum_net = all_data %>%
+    filter(set == 'train') %>%
+    group_by(networkDomain) %>%
+    summarise(count = n(),
+              avg_revenue = mean(transactionRevenue))
+
+
+all_data$net_new = ifelse(
+    all_data$networkDomain == 'comcast.net',
+    'comcast.net',
+    ifelse(all_data$networkDomain == 'rr.com',
+           'rr.com',
+           ifelse(all_data$networkDomain == 'verizon.net',
+                  'verizon.net',
+                  ifelse(all_data$networkDomain == 'ttnet.com.tr',
+                         'ttnet.com.tr',
+                         ifelse(all_data$networkDomain == 'comcastbusiness.net',
+                                'comcastbusiness.net',
+                        ifelse(all_data$networkDomain == 'hinet.net',
+                                'hinet.net',
+                        ifelse(all_data$networkDomain == 'virginm.net',
+                                'virginm.net', 
+                        ifelse(all_data$networkDomain == '3bb.co.th',
+                                '3bb.co.th',
+                        ifelse(all_data$networkDomain == 'prod-infinitum.com.mx',
+                                'prod-infinitum.com.mx',
+                        ifelse(all_data$networkDomain == 'cox.net',
+                                'cox.net',
+                        ifelse(all_data$networkDomain == 'sbcglobal.net',
+                                'sbcglobal.net',
+                        ifelse(all_data$networkDomain == 'btcentralplus.com',
+                                'btcentralplus.com',
+                        ifelse(all_data$networkDomain == 'att.net',
+                                'att.net',
+                        ifelse(all_data$networkDomain == 'google.com',
+                                'google.com',
+                        ifelse(all_data$networkDomain == 'optonline.net',
+                                'optonline.net',                                                          ifelse(all_data$networkDomain == 'totbb.net',
+                                'totbb.net',   
+                        ifelse(all_data$networkDomain == 'vnpt.vn',
+                                'vnpt.vn',
+                        ifelse(all_data$networkDomain == 'asianet.co.th',
+                                'asianet.co.th',
+                        ifelse(all_data$networkDomain == 'pldt.net',
+                                'pldt.net',
+                        ifelse(all_data$networkDomain == 'rima-tde.net',
+                                'rima-tde.net',                                                            ifelse(all_data$networkDomain == 'amazonaws.com',
+                                'amazonaws.com',
+                        ifelse(all_data$networkDomain == 't-ipconnect.de',
+                                't-ipconnect.de', 'Others'))))))))))))))))))))))
+
+
+all_data$domain_new = ifelse(
+    str_detect(all_data$networkDomain, '.com'),
+    'com',
+    ifelse(str_detect(all_data$networkDomain, '.net'),
+           'net', 'Others'))
+
+all_data$net_new = as.factor(all_data$net_new)
+all_data$domain_new = as.factor(all_data$domain_new)
+all_data$networkDomain = NULL
+rm(sum_net)
+
+#### source
+
+sum_source = all_data %>%
+    filter(set == 'train') %>%
+    group_by(source) %>%
+    summarise(count = n(),
+              avg_revenue = mean(transactionRevenue))
+
+
+all_data$source_new = ifelse(
+    str_detect(all_data$source, 'google'),
+    'google',
+    ifelse(str_detect(all_data$source, 'youtube'),
+           'youtube',
+           ifelse(all_data$source == '(direct)',
+                  '(direct)',
+                  ifelse(str_detect(all_data$source, 'facebook'),
+                         'facebook',
+                         ifelse(all_data$source == 'Partners',
+                                'Partners',
+                        ifelse(str_detect(all_data$source, 'baidu'),
+                                'baidu',
+                        ifelse(all_data$source == 'dfa',
+                                'dfa', 
+                        ifelse(str_detect(all_data$source, 'siliconvalley'),
+                                'siliconvalley',
+                        ifelse(str_detect(all_data$source, 'qiita'),
+                                'qiita',
+                        ifelse(str_detect(all_data$source, 'quora'),
+                                'quora',
+                        ifelse(str_detect(all_data$source, 'bing'),
+                                'bing',
+                        ifelse(str_detect(all_data$source, 'yahoo'),
+                                'yahoo',
+                        ifelse(all_data$source == 't.co',
+                                't.co', 'Others')))))))))))))
+
+
+all_data$source_new = as.factor(all_data$source_new)
+all_data$source = NULL
+rm(sum_source)
+
+
+#### keyword
+
+sum_keyword = all_data %>%
+    filter(set == 'train') %>%
+    group_by(keyword) %>%
+    summarise(count = n(),
+              avg_revenue = mean(transactionRevenue))
+
+
+all_data$keyword_new = ifelse(
+    str_detect(tolower(all_data$keyword), 'google'),
+    'google',
+    ifelse(str_detect(tolower(all_data$keyword), 'youtube'),
+           'youtube',
+           ifelse(all_data$keyword == '6qEhsCssdK0z36ri',
+                  '6qEhsCssdK0z36ri',
+                  ifelse(all_data$keyword == '1hZbAqLCbjwfgOH7',
+                         '1hZbAqLCbjwfgOH7',
+                  ifelse(all_data$keyword == '(Remarketing/Content targeting)',
+                         '(Remarketing/Content targeting)', 
+                  ifelse(all_data$keyword == '(automatic matching)',
+                         '(automatic matching)', 'Others'))))))
+
+
+all_data[is.na(all_data$keyword_new),'keyword_new'] = 'Others'
+all_data$keyword_new = as.factor(all_data$keyword_new)
+all_data$keyword = NULL
+rm(sum_keyword)
+
+
+
+#### campaign
+
+sum_campaign = all_data %>%
+    filter(set == 'train') %>%
+    group_by(campaign) %>%
+    summarise(count = n(),
+              avg_revenue = mean(transactionRevenue))
+
+
+all_data$campaign_new = ifelse(
+    ifelse(all_data$campaign == 'Data Share Promo',
+           'Data Share Promo',
+           ifelse(all_data$campaign == 'AW - Dynamic Search Ads Whole Site',
+                  'AW - Dynamic Search Ads Whole Site',
+                  ifelse(all_data$campaign == 'AW - Accessories',
+                         'AW - Accessories', 
+                         'Others'))))
+
+all_data[is.na(all_data$campaign_new),'campaign_new'] = 'Others'
+all_data$campaign_new = as.factor(all_data$campaign_new)
+all_data$campaign = NULL
+rm(sum_campaign)
+
+
+#### adcontent
+all_data$adContent = NULL
+
+
+```
+
+
+```{r summary}
+
+summary(all_data)
+
+```
+
+```{r cleaning}
+
+all_data = all_data[,c(1,2,4,5,7:12,21,22,93:101,3,6,13:20,23:92)]
+
+all_data = all_data[,c(1:59, 68:101)]
+## remove broswer and os
+
+
+```
+
+
+```{r update}
+## brower new
+browser_new_avg = all_data %>%
+    filter(set == 'train') %>%
+    group_by(browser_new) %>%
+    summarise(
+              avg_hits_browser_new = mean(hits),
+              max_hits_browser_new = max(hits),
+              avg_pageviews_browser_new = mean(pageviews),
+              max_pageviews_browser_new = max(pageviews))
+
+all_data = merge(all_data, browser_new_avg, by = 'browser_new', all.x=TRUE)
+
+
+## os new
+OS_new_avg = all_data %>%
+    filter(set == 'train') %>%
+    group_by(OS_new) %>%
+    summarise(
+              avg_hits_OS_new = mean(hits),
+              max_hits_OS_new = max(hits),
+              avg_pageviews_OS_new = mean(pageviews),
+              max_pageviews_OS_new = max(pageviews))
+
+all_data = merge(all_data, OS_new_avg, by = 'OS_new', all.x=TRUE)
+
+all_data$adwordsClickInfo.slot = as.character(all_data$adwordsClickInfo.slot)
+all_data[is.na(all_data$adwordsClickInfo.slot),'adwordsClickInfo.slot'] = 'Others'
+all_data$adwordsClickInfo.slot = as.factor(all_data$adwordsClickInfo.slot)
+
+all_data$adwordsClickInfo.adNetworkType = as.character(all_data$adwordsClickInfo.adNetworkType)
+all_data[is.na(all_data$adwordsClickInfo.adNetworkType),'adwordsClickInfo.adNetworkType'] = 'Others'
+all_data$adwordsClickInfo.adNetworkType = as.factor(all_data$adwordsClickInfo.adNetworkType)
+
+
+```
+
+```{r saving point}
+all_data = all_data[,c(3:4, 1:2, 5:91, 94:101, 92:93)]
+
+save(all_data, file = 'input/new_feature4.RData')
+
+```
+
+
+Modeling
+
+```{r modeling with classifier}
+
+load('input/new_feature4.RData')
+
+all_data$purchaseFlag = ifelse(all_data$transactionRevenue > 0, 1, 0)
+
+data_train = all_data[all_data$set== 'train',-c(1,2,100)]
+data_train = data_train %>% filter(bounces == 0)
+train_pool = catboost.load_pool(
+    data = data_train[,-c(98,99)],
+    label = data_train[,99],
+    cat_features = c(1:19))
+
+
+data_test = all_data[all_data$set== 'test',-c(1,2,100)]
+data_test = data_test %>% filter(bounces == 0)
+test_pool = catboost.load_pool(
+    data = data_test[,-c(98,99)],
+    label = data_test[,99],
+    cat_features = c(1:19))
+
+### modeling
+
+fit_params <- list(loss_function = 'Logloss',
+                   custom_loss = 'F1',
+                   iterations = 2000,
+                   learning_rate = 0.005,
+                   random_seed = 1,
+                   rsm = 0.95,
+                   l2_leaf_reg = 3,
+                   depth = 8,
+                   one_hot_max_size = 100,
+                   class_weights = c(0.1, 3),
+                   train_dir = 'train_dir_classifier',
+                   verbose = 500)
+
+model <- catboost.train(
+        learn_pool = train_pool, 
+        params = fit_params)
+    
+print('classifier training ends')
+
+### prediction (get the classification score)
+
+train_predict <- catboost.predict(model, 
+                                  train_pool, 
+                                  prediction_type = 'RawFormulaVal')
+
+test_predict <- catboost.predict(model, 
+                                 test_pool, 
+                                 prediction_type = 'RawFormulaVal')
+
+data_train$class_pred = train_predict
+data_test$class_pred = test_predict
+    
+train_pool = catboost.load_pool(
+    data = data_train[,-c(98,99)],
+    label = data_train[,98],
+    cat_features = c(1:19))
+    
+test_pool = catboost.load_pool(
+    data = data_test[,-c(98,99)],
+    label = data_test[,98],
+    cat_features = c(1:19))
+
+### train regression model
+    
+print('start regressor training')
+    
+fit_params <- list(loss_function = 'RMSE',
+                   iterations = 2500,
+                   learning_rate = 0.005,
+                   random_seed = 42,
+                   rsm = 0.9,
+                   l2_leaf_reg = 3,
+                   depth = 7,
+                   border_count = 64,
+                   one_hot_max_size = 100,
+                   train_dir = paste0('train_dir_regressor'),
+                   verbose = 500)
+
+model <- catboost.train(
+        learn_pool = train_pool,
+        params = fit_params)
+
+prediction <- catboost.predict(model, 
+                               test_pool, 
+                               prediction_type = 'RawFormulaVal')
+    
+print('regressor training ends')
+
+## submission
+    
+prediction = ifelse(exp(prediction) - 1 <0, 0, exp(prediction) - 1)
+
+
+submission = data.frame(fullVisitorId = filter(all_data, set== 'test', bounces == 0)$fullVisitorId, prediction = prediction)
+
+submission = rbind(submission, 
+                   data.frame(
+                       fullVisitorId = filter(all_data, 
+                              set== 'test', 
+                              bounces == 1)$fullVisitorId, 
+                       prediction = 0))
+
+submission = submission %>% 
+    group_by(fullVisitorId) %>%
+    summarise(PredictedLogRevenue = log(sum(prediction)+1))
+
+submission$PredictedLogRevenue = as.character(submission$PredictedLogRevenue)
+
+write.csv(submission, 'submission/submission100401.csv', row.names=FALSE)
+
+
+```
+
+
+

@@ -1,0 +1,96 @@
+---
+title: "LightGBM"
+author: "Yu Dong"
+date: "10/2/2018"
+output: html_document
+---
+
+```{r load package and data}
+library(tidyverse)
+library(caret)
+library(lightgbm)
+library(Matrix)
+
+load('input/new_feature4.RData')
+```
+
+```{r one-hot encoding}
+
+
+categoricals = c("OS_new", "browser_new", "wday", 
+                 "weekday", "season", "medium",
+                 "deviceCategory", "channelGrouping", "subContinent",
+                 "adwordsClickInfo.slot", 
+                 "adwordsClickInfo.adNetworkType", 
+                 "metro_new", "country_new", "net_new",
+                 "domain_new", "source_new", "keyword_new", "campaign_new",
+                 "continent")
+
+
+library(ade4)
+library(data.table)
+
+for (f in categoricals){
+    dummy = acm.disjonctif(all_data[f])
+    all_data[f] = NULL
+    all_data = cbind(all_data, dummy)
+}
+
+rm(dummy, f, categoricals)
+
+
+all_data = all_data[,c(1:80, 83:257, 81:82)]
+
+
+```
+
+
+LightGBM Starter
+
+```{r lgb}
+train = all_data[all_data$set == "train", -c(1,2,256)]
+test = all_data[all_data$set == "test", -c(1,2,256)]
+
+train <- as.matrix (train) 
+test <- as.matrix(test) 
+dtrain <- lgb.Dataset(data = train[,1:253], label = train[, 254]) 
+
+
+start = Sys.time()
+param <- list(objective = "regression", 
+              learning_rate = 0.005,
+              num_leaves = 30, 
+              max_depth = 8,
+              #min_data_in_leaf = 3000,
+              scale_pos_weight = 40,
+              num_threads = 3)
+
+cv = lgb.cv(param,
+            dtrain,
+            nrounds = 5000,
+            nfold = 5,
+            eval = "rmse",
+            verbose = 1,
+            early_stopping_rounds = 100)
+
+## 1.60096 at 2747
+
+
+lgb_model <- lgb.train(data = dlgb_train, 
+                       objective = "regression", 
+                       learning_rate = 0.005,
+                       nrounds = 3000,
+                       num_leaves = 50, 
+                       max_depth = 4,
+                       min_data_in_leaf = 2000,
+                       min_sum_hessian_in_leaf = 50,
+                       num_threads = 3)
+
+
+Sys.time() - start
+```
+install_github("Microsoft/LightGBM", subdir = "R-package")
+
+
+
+

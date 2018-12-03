@@ -1,0 +1,563 @@
+---
+title: "Feature Engineering"
+output: html_notebook
+---
+
+```{r load package and data}
+library(tidyverse)
+library(lubridate)
+
+load('input/cleaned_all_data.RData')
+```
+
+## Time features
+
+```{r time}
+all_data$visitStartTime = ymd_hms(all_data$visitStartTime)
+all_data$month = month(all_data$visitStartTime)
+all_data$season = ifelse(all_data$month %in% c(3,4,5), 'Spring',
+                         ifelse(all_data$month %in% c(6,7,8), 'Summer',
+                         ifelse(all_data$month %in% c(9,10,11), 'Fall',
+                         'Winter')))
+
+all_data$weekday = wday(all_data$visitStartTime, label = TRUE)
+all_data$wday = ifelse(all_data$weekday %in% c('Sat', 'Sun'), 'weekend', 'weekday')
+
+all_data$hour = hour(all_data$visitStartTime)
+all_data$visitStartTime = NULL
+
+
+all_data$wday = as.factor(all_data$wday)
+all_data$season = as.factor(all_data$season)
+
+```
+
+
+## Web Behavior Data
+
+Is revenue for bounced session always 0?
+
+```{r bounce}
+all_data %>%
+    filter(set == 'train') %>%
+    group_by(bounces) %>%
+    summarise(n = n(),
+              noRevenue = sum(ifelse(transactionRevenue == 0, 1, 0)))
+
+## if bounces -> always 0
+## after predction, change the revenue of bounced sessions to 0
+```
+
+## Deviation Data
+
+get deviation from max/mean/median(visitnumber, hits, pageviews, ...) in the country/month/weekday...
+
+```{r deviation from geo}
+## continent
+all_data %>%
+    filter(set == 'train') %>%
+    group_by(continent) %>%
+    summarise(n = n(),
+              avg_revenue = mean(transactionRevenue),
+              avg_hits = mean(hits),
+              median_hits = median(hits),
+              max_hits = max(hits),
+              avg_pageviews = mean(pageviews),
+              median_pageviews = median(pageviews),
+              max_pageviews = max(pageviews))
+
+continent_avg = all_data %>%
+    filter(set == 'train') %>%
+    group_by(continent) %>%
+    summarise(
+              avg_hits = mean(hits),
+              max_hits = max(hits),
+              avg_pageviews = mean(pageviews),
+              max_pageviews = max(pageviews))
+
+all_data = merge(all_data, continent_avg, by = 'continent', all.x=TRUE)
+all_data$hits_to_continent_avg = all_data$hits / all_data$avg_hits
+all_data$hits_to_continent_max = all_data$hits / all_data$max_hits
+all_data$pageviews_to_continent_avg = all_data$pageviews / all_data$avg_pageviews
+all_data$pageviews_to_continent_max = all_data$hits / all_data$max_pageviews
+
+all_data$avg_hits = NULL
+all_data$max_hits = NULL
+all_data$avg_pageviews = NULL
+all_data$max_pageviews = NULL
+
+## sub continent
+
+subcontinent_avg = all_data %>%
+    filter(set == 'train') %>%
+    group_by(subContinent) %>%
+    summarise(
+              avg_hits = mean(hits),
+              max_hits = max(hits),
+              avg_pageviews = mean(pageviews),
+              max_pageviews = max(pageviews))
+
+all_data = merge(all_data, subcontinent_avg, by = 'subContinent',  all.x=TRUE)
+all_data$hits_to_subcontinent_avg = all_data$hits / all_data$avg_hits
+all_data$hits_to_subcontinent_max = all_data$hits / all_data$max_hits
+all_data$pageviews_to_subcontinent_avg = all_data$pageviews / all_data$avg_pageviews
+all_data$pageviews_to_subcontinent_max = all_data$hits / all_data$max_pageviews
+
+all_data$avg_hits = NULL
+all_data$max_hits = NULL
+all_data$avg_pageviews = NULL
+all_data$max_pageviews = NULL
+
+## country
+country_avg = all_data %>%
+    filter(set == 'train') %>%
+    group_by(country) %>%
+    summarise(
+              avg_hits = mean(hits),
+              max_hits = max(hits),
+              avg_pageviews = mean(pageviews),
+              max_pageviews = max(pageviews))
+
+all_data = merge(all_data, country_avg, by = 'country',  all.x=TRUE)
+all_data$hits_to_country_avg = all_data$hits / all_data$avg_hits
+all_data$hits_to_country_max = all_data$hits / all_data$max_hits
+all_data$pageviews_to_country_avg = all_data$pageviews / all_data$avg_pageviews
+all_data$pageviews_to_country_max = all_data$hits / all_data$max_pageviews
+
+all_data$avg_hits = NULL
+all_data$max_hits = NULL
+all_data$avg_pageviews = NULL
+all_data$max_pageviews = NULL
+
+## region
+region_avg = all_data %>%
+    filter(set == 'train') %>%
+    group_by(region) %>%
+    summarise(
+              avg_hits = mean(hits),
+              max_hits = max(hits),
+              avg_pageviews = mean(pageviews),
+              max_pageviews = max(pageviews))
+
+all_data = merge(all_data, region_avg, by = 'region',  all.x=TRUE)
+all_data$hits_to_region_avg = all_data$hits / all_data$avg_hits
+all_data$hits_to_region_max = all_data$hits / all_data$max_hits
+all_data$pageviews_to_region_avg = all_data$pageviews / all_data$avg_pageviews
+all_data$pageviews_to_region_max = all_data$hits / all_data$max_pageviews
+
+all_data$avg_hits = NULL
+all_data$max_hits = NULL
+all_data$avg_pageviews = NULL
+all_data$max_pageviews = NULL
+
+
+## city
+city_avg = all_data %>%
+    filter(set == 'train') %>%
+    group_by(city) %>%
+    summarise(
+              avg_hits = mean(hits),
+              max_hits = max(hits),
+              avg_pageviews = mean(pageviews),
+              max_pageviews = max(pageviews))
+
+all_data = merge(all_data, city_avg, by = 'city',  all.x=TRUE)
+all_data$hits_to_city_avg = all_data$hits / all_data$avg_hits
+all_data$hits_to_city_max = all_data$hits / all_data$max_hits
+all_data$pageviews_to_city_avg = all_data$pageviews / all_data$avg_pageviews
+all_data$pageviews_to_city_max = all_data$hits / all_data$max_pageviews
+
+all_data$avg_hits = NULL
+all_data$max_hits = NULL
+all_data$avg_pageviews = NULL
+all_data$max_pageviews = NULL
+
+## metro
+metro_avg = all_data %>%
+    filter(set == 'train') %>%
+    group_by(metro) %>%
+    summarise(
+              avg_hits = mean(hits),
+              max_hits = max(hits),
+              avg_pageviews = mean(pageviews),
+              max_pageviews = max(pageviews))
+
+all_data = merge(all_data, metro_avg, by = 'metro',  all.x=TRUE)
+all_data$hits_to_metro_avg = all_data$hits / all_data$avg_hits
+all_data$hits_to_metro_max = all_data$hits / all_data$max_hits
+all_data$pageviews_to_metro_avg = all_data$pageviews / all_data$avg_pageviews
+all_data$pageviews_to_metro_max = all_data$hits / all_data$max_pageviews
+
+all_data$avg_hits = NULL
+all_data$max_hits = NULL
+all_data$avg_pageviews = NULL
+all_data$max_pageviews = NULL
+
+
+```
+
+
+```{r deviation from web feature}
+## channel grouping
+channelGrouping_avg = all_data %>%
+    filter(set == 'train') %>%
+    group_by(channelGrouping) %>%
+    summarise(
+              avg_hits = mean(hits),
+              max_hits = max(hits),
+              avg_pageviews = mean(pageviews),
+              max_pageviews = max(pageviews))
+
+all_data = merge(all_data, channelGrouping_avg, by = 'channelGrouping', all.x=TRUE)
+all_data$hits_to_channelGrouping_avg = all_data$hits / all_data$avg_hits
+all_data$hits_to_channelGrouping_max = all_data$hits / all_data$max_hits
+all_data$pageviews_to_channelGrouping_avg = all_data$pageviews / all_data$avg_pageviews
+all_data$pageviews_to_channelGrouping_max = all_data$hits / all_data$max_pageviews
+
+all_data$avg_hits = NULL
+all_data$max_hits = NULL
+all_data$avg_pageviews = NULL
+all_data$max_pageviews = NULL
+
+## browser
+browser_avg = all_data %>%
+    filter(set == 'train') %>%
+    group_by(browser) %>%
+    summarise(
+              avg_hits = mean(hits),
+              max_hits = max(hits),
+              avg_pageviews = mean(pageviews),
+              max_pageviews = max(pageviews))
+
+all_data = merge(all_data, browser_avg, by = 'browser', all.x=TRUE)
+all_data$hits_to_browser_avg = all_data$hits / all_data$avg_hits
+all_data$hits_to_browser_max = all_data$hits / all_data$max_hits
+all_data$pageviews_to_browser_avg = all_data$pageviews / all_data$avg_pageviews
+all_data$pageviews_to_browser_max = all_data$hits / all_data$max_pageviews
+
+all_data$avg_hits = NULL
+all_data$max_hits = NULL
+all_data$avg_pageviews = NULL
+all_data$max_pageviews = NULL
+
+## Operating system
+operatingSystem_avg = all_data %>%
+    filter(set == 'train') %>%
+    group_by(operatingSystem) %>%
+    summarise(
+              avg_hits = mean(hits),
+              max_hits = max(hits),
+              avg_pageviews = mean(pageviews),
+              max_pageviews = max(pageviews))
+
+all_data = merge(all_data, operatingSystem_avg, by = 'operatingSystem', all.x=TRUE)
+all_data$hits_to_os_avg = all_data$hits / all_data$avg_hits
+all_data$hits_to_os_max = all_data$hits / all_data$max_hits
+all_data$pageviews_to_os_avg = all_data$pageviews / all_data$avg_pageviews
+all_data$pageviews_to_os_max = all_data$hits / all_data$max_pageviews
+
+all_data$avg_hits = NULL
+all_data$max_hits = NULL
+all_data$avg_pageviews = NULL
+all_data$max_pageviews = NULL
+
+## device group
+
+deviceCategory_avg = all_data %>%
+    filter(set == 'train') %>%
+    group_by(deviceCategory) %>%
+    summarise(
+              avg_hits = mean(hits),
+              max_hits = max(hits),
+              avg_pageviews = mean(pageviews),
+              max_pageviews = max(pageviews))
+
+all_data = merge(all_data, deviceCategory_avg, by = 'deviceCategory', all.x=TRUE)
+all_data$hits_to_deviceCategory_avg = all_data$hits / all_data$avg_hits
+all_data$hits_to_deviceCategory_max = all_data$hits / all_data$max_hits
+all_data$pageviews_to_deviceCategory_avg = all_data$pageviews / all_data$avg_pageviews
+all_data$pageviews_to_deviceCategory_max = all_data$hits / all_data$max_pageviews
+
+all_data$avg_hits = NULL
+all_data$max_hits = NULL
+all_data$avg_pageviews = NULL
+all_data$max_pageviews = NULL
+
+
+## medium
+medium_avg = all_data %>%
+    filter(set == 'train') %>%
+    group_by(medium) %>%
+    summarise(
+              avg_hits = mean(hits),
+              max_hits = max(hits),
+              avg_pageviews = mean(pageviews),
+              max_pageviews = max(pageviews))
+
+all_data = merge(all_data, medium_avg, by = 'medium', all.x=TRUE)
+all_data$hits_to_medium_avg = all_data$hits / all_data$avg_hits
+all_data$hits_to_medium_max = all_data$hits / all_data$max_hits
+all_data$pageviews_to_medium_avg = all_data$pageviews / all_data$avg_pageviews
+all_data$pageviews_to_medium_max = all_data$hits / all_data$max_pageviews
+
+all_data$avg_hits = NULL
+all_data$max_hits = NULL
+all_data$avg_pageviews = NULL
+all_data$max_pageviews = NULL
+
+```
+
+
+```{r deviation from time}
+## season
+season_avg = all_data %>%
+    filter(set == 'train') %>%
+    group_by(season) %>%
+    summarise(
+              avg_hits = mean(hits),
+              max_hits = max(hits),
+              avg_pageviews = mean(pageviews),
+              max_pageviews = max(pageviews))
+
+all_data = merge(all_data, season_avg, by = 'season', all.x=TRUE)
+all_data$hits_to_season_avg = all_data$hits / all_data$avg_hits
+all_data$hits_to_season_max = all_data$hits / all_data$max_hits
+all_data$pageviews_to_season_avg = all_data$pageviews / all_data$avg_pageviews
+all_data$pageviews_to_season_max = all_data$hits / all_data$max_pageviews
+
+all_data$avg_hits = NULL
+all_data$max_hits = NULL
+all_data$avg_pageviews = NULL
+all_data$max_pageviews = NULL
+
+
+## month
+month_avg = all_data %>%
+    filter(set == 'train') %>%
+    group_by(month) %>%
+    summarise(
+              avg_hits = mean(hits),
+              max_hits = max(hits),
+              avg_pageviews = mean(pageviews),
+              max_pageviews = max(pageviews))
+
+all_data = merge(all_data, month_avg, by = 'month', all.x=TRUE)
+all_data$hits_to_month_avg = all_data$hits / all_data$avg_hits
+all_data$hits_to_month_max = all_data$hits / all_data$max_hits
+all_data$pageviews_to_month_avg = all_data$pageviews / all_data$avg_pageviews
+all_data$pageviews_to_month_max = all_data$hits / all_data$max_pageviews
+
+all_data$avg_hits = NULL
+all_data$max_hits = NULL
+all_data$avg_pageviews = NULL
+all_data$max_pageviews = NULL
+
+## weekday
+weekday_avg = all_data %>%
+    filter(set == 'train') %>%
+    group_by(weekday) %>%
+    summarise(
+              avg_hits = mean(hits),
+              max_hits = max(hits),
+              avg_pageviews = mean(pageviews),
+              max_pageviews = max(pageviews))
+
+all_data = merge(all_data, weekday_avg, by = 'weekday', all.x=TRUE)
+all_data$hits_to_weekday_avg = all_data$hits / all_data$avg_hits
+all_data$hits_to_weekday_max = all_data$hits / all_data$max_hits
+all_data$pageviews_to_weekday_avg = all_data$pageviews / all_data$avg_pageviews
+all_data$pageviews_to_weekday_max = all_data$hits / all_data$max_pageviews
+
+all_data$avg_hits = NULL
+all_data$max_hits = NULL
+all_data$avg_pageviews = NULL
+all_data$max_pageviews = NULL
+
+## wday
+wday_avg = all_data %>%
+    filter(set == 'train') %>%
+    group_by(wday) %>%
+    summarise(
+              avg_hits = mean(hits),
+              max_hits = max(hits),
+              avg_pageviews = mean(pageviews),
+              max_pageviews = max(pageviews))
+
+all_data = merge(all_data, wday_avg, by = 'wday', all.x=TRUE)
+all_data$hits_to_wday_avg = all_data$hits / all_data$avg_hits
+all_data$hits_to_wday_max = all_data$hits / all_data$max_hits
+all_data$pageviews_to_wday_avg = all_data$pageviews / all_data$avg_pageviews
+all_data$pageviews_to_wday_max = all_data$hits / all_data$max_pageviews
+
+all_data$avg_hits = NULL
+all_data$max_hits = NULL
+all_data$avg_pageviews = NULL
+all_data$max_pageviews = NULL
+
+## hour
+hour_avg = all_data %>%
+    filter(set == 'train') %>%
+    group_by(hour) %>%
+    summarise(
+              avg_hits = mean(hits),
+              max_hits = max(hits),
+              avg_pageviews = mean(pageviews),
+              max_pageviews = max(pageviews))
+
+all_data = merge(all_data, hour_avg, by = 'hour', all.x=TRUE)
+all_data$hits_to_hour_avg = all_data$hits / all_data$avg_hits
+all_data$hits_to_hour_max = all_data$hits / all_data$max_hits
+all_data$pageviews_to_hour_avg = all_data$pageviews / all_data$avg_pageviews
+all_data$pageviews_to_hour_max = all_data$hits / all_data$max_pageviews
+
+all_data$avg_hits = NULL
+all_data$max_hits = NULL
+all_data$avg_pageviews = NULL
+all_data$max_pageviews = NULL
+```
+
+```{r adjust column sequence}
+summary(all_data)
+
+all_data = all_data[,c(17, 18, 1:16, 19:33, 35:98, 34)]
+```
+
+
+```{r saving point 4}
+all_data$logRevenue = log(all_data$transactionRevenue + 1)
+
+save(all_data, file = 'input/new_feature1.RData')
+```
+
+
+Modeling Attemp
+
+```{r modeling}
+data_train = all_data[all_data$set== 'train',-c(1,2,98)]
+train_pool = catboost.load_pool(
+    data = data_train[,-96],
+    label = data_train[,96],
+    cat_features = c(2,3,5:16,19,24,25,26,28,30,31))
+
+
+data_test = all_data[all_data$set== 'test',-c(1,2,98)]
+test_pool = catboost.load_pool(
+    data = data_test[,-96],
+    label = data_test[,96],
+    cat_features = c(2,3,5:16,19,24,25,26,28,30,31))
+
+###
+
+fit_params <- list(loss_function = 'RMSE',
+                   iterations = 2500,
+                   learning_rate = 0.005,
+                   random_seed = 42,
+                   one_hot_max_size = 100,
+                   train_dir = 'train_dir')
+
+model <- catboost.train(
+    learn_pool = train_pool, 
+    params = fit_params)
+
+###
+
+prediction <- catboost.predict(model, 
+                               test_pool, 
+                               prediction_type = 'RawFormulaVal')
+
+prediction = ifelse(exp(prediction) - 1 <0, 0, exp(prediction) - 1)
+
+submission = data.frame(
+    fullVisitorId = all_data[all_data$set== 'test',]$fullVisitorId, 
+    bounces = all_data[all_data$set== 'test',]$bounces,
+    prediction = prediction)
+
+submission$prediction = ifelse(submission$bounces == 1, 0, submission$prediction)
+
+submission$bounces = NULL
+
+submission = submission %>% 
+    group_by(fullVisitorId) %>%
+    summarise(PredictedLogRevenue = log(sum(prediction)+1))
+
+submission$PredictedLogRevenue = as.character(submission$PredictedLogRevenue)
+
+write.csv(submission, 'submission/submission091701.csv', row.names=FALSE)
+# traning RMSE: 1.6088489,  LB lower.....
+
+```
+
+
+```{r featue importance}
+feature_importance = data.frame(
+    features = names(data_train)[1:95],
+    importance = catboost.get_feature_importance(model))
+
+```
+
+Train with top 50 features
+
+```{r top 50}
+top_50_features = arrange(feature_importance,-importance)[1:50,1]
+top_50_features = as.character(top_50_features)
+
+
+###
+data_train = cbind(all_data[all_data$set== 'train',top_50_features], logRevenue = all_data[all_data$set== 'train',99])
+train_pool = catboost.load_pool(
+    data = data_train[,-51],
+    label = data_train[,51],
+    cat_features = c(2,5,16,17,18,20,21,24,28,50))
+
+
+data_test = cbind(all_data[all_data$set== 'test',top_50_features], logRevenue = all_data[all_data$set== 'test',99])
+test_pool = catboost.load_pool(
+    data = data_test[,-51],
+    label = data_test[,51],
+    cat_features = c(2,5,16,17,18,20,21,24,28,50))
+
+###
+
+fit_params <- list(loss_function = 'RMSE',
+                   iterations = 2000,
+                   learning_rate = 0.005,
+                   random_seed = 42,
+                   one_hot_max_size = 100,
+                   train_dir = 'train_dir')
+
+model <- catboost.train(
+    learn_pool = train_pool, 
+    params = fit_params)
+
+###
+
+prediction <- catboost.predict(model, 
+                               test_pool, 
+                               prediction_type = 'RawFormulaVal')
+
+prediction = ifelse(exp(prediction) - 1 <0, 0, exp(prediction) - 1)
+
+submission = data.frame(
+    fullVisitorId = all_data[all_data$set== 'test',]$fullVisitorId, 
+    bounces = all_data[all_data$set== 'test',]$bounces,
+    prediction = prediction)
+
+submission$prediction = ifelse(submission$bounces == 1, 0, submission$prediction)
+
+submission$bounces = NULL
+
+submission = submission %>% 
+    group_by(fullVisitorId) %>%
+    summarise(PredictedLogRevenue = log(sum(prediction)+1))
+
+submission$PredictedLogRevenue = as.character(submission$PredictedLogRevenue)
+
+write.csv(submission, 'submission/submission091702.csv', row.names=FALSE)
+
+## learning RMSE: 1.6200051
+## LB: 1.7781 (lower)
+
+```
+
+
+Remove those deviation features?

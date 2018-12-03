@@ -1,0 +1,234 @@
+---
+title: "Kaggle Customer Revenue Prediction"
+output: html_notebook
+---
+
+## Load Data
+
+```{r library}
+library(tidyverse)
+library(jsonlite)
+setwd("~/Desktop/Kaggle - Customer Revenue Prediction")
+```
+
+```{r data}
+train = read.csv('input/train.csv', 
+                 colClasses=c(rep("character",12)))
+test = read.csv('input/test.csv',
+                colClasses=c(rep("character",12)))
+sample_sub = read.csv('input/sample_submission.csv',
+                      colClasses=c(rep("character",2)))
+```
+
+```{r savepoint1}
+##save.image("~/Desktop/Kaggle - Customer Revenue Prediction/input/raw data.RData")
+
+load('input/raw data.RData')
+```
+
+
+
+```{r overview}
+summary(train)
+```
+
+
+## Parse JSON Columns
+
+Function from https://www.kaggle.com/marked/using-r-tidyeval-to-expand-json-into-columns
+
+```{r json parsing function}
+json_to_columns <- function(df, column){
+  column <- enquo(column)
+  
+  json_df <- df %>% 
+    pull(!!column) %>% 
+    paste(collapse = ",") %>% 
+    paste("[",.,"]") %>% 
+    fromJSON(flatten = TRUE)
+  
+  df %>% 
+    select(-!!column) %>% 
+    bind_cols(json_df)
+}
+
+```
+
+
+```{r parsing data}
+train$set = 'train'
+test$set = 'test'
+
+all_data = rbind(train, test)
+
+all_data <- all_data %>% 
+  json_to_columns(device) %>% 
+  json_to_columns(geoNetwork) %>% 
+  json_to_columns(totals) %>% 
+  json_to_columns(trafficSource)
+  
+names(all_data)
+```
+
+```{r change column seq}
+## move visitorid and set to the first two columns, and target column (revenue) to the end
+all_data = all_data[,c(3, 9, 1:2, 4:8, 10:41, 43:56, 42)]
+```
+
+```{r savepoint2}
+save(all_data, file = 'input/parsed_all_data.RData')
+```
+
+
+## Data Cleaning
+
+```{r train summary}
+summary(all_data)
+```
+
+
+```{r change datatype}
+
+all_data$socialEngagementType = NULL ## all invalid, remove it
+
+all_data$sessionId = NULL ## almost unique, except four of them
+
+## visitid and visitnumber should work together to define unique visit?
+## no, 98.2% unique
+
+all_data$visitId = NULL ## almost unique (97.5%)
+
+## StartTime is EPOCH, need to convert to PST
+all_data$visitStartTime = as.POSIXct(as.numeric(all_data$visitStartTime), origin=as.Date('1970-01-01'), tz='America/Los_Angeles')
+all_data$date = NULL
+
+## all invalid columns:
+all_data$browserVersion = NULL
+all_data$browserSize = NULL
+all_data$operatingSystemVersion = NULL
+all_data$mobileDeviceBranding = NULL
+all_data$mobileDeviceModel = NULL
+all_data$mobileInputSelector = NULL
+all_data$mobileDeviceInfo = NULL
+all_data$mobileDeviceMarketingName = NULL
+all_data$flashVersion = NULL
+all_data$language = NULL
+all_data$screenColors = NULL
+all_data$screenResolution = NULL
+all_data$cityId = NULL
+all_data$latitude = NULL
+all_data$longitude = NULL
+all_data$networkLocation = NULL
+all_data$adwordsClickInfo.criteriaParameters = NULL
+
+## 'visits' is always 1
+all_data$visits = NULL
+
+## 'hits', 'pageviews', 'bounces', 'newVisits' need to transfer to numeric
+all_data$hits = as.numeric(all_data$hits)
+all_data$pageviews = as.numeric(all_data$pageviews)
+all_data$bounces = as.numeric(all_data$bounces)
+all_data$newVisits = as.numeric(all_data$newVisits)
+
+## change NA to 0
+all_data[is.na(all_data$pageviews),'pageviews'] = 0
+all_data[is.na(all_data$bounces),'bounces'] = 0
+all_data[is.na(all_data$newVisits),'newVisits'] = 0
+
+## also adwords clickinfo page -- search page # of the ad
+## not null only if clicked
+all_data$adwordsClickInfo.page = as.numeric(all_data$adwordsClickInfo.page)
+all_data[is.na(all_data$adwordsClickInfo.page),'adwordsClickInfo.page'] = 999
+
+## bolean to 0/1
+all_data$isMobile = as.numeric(all_data$isMobile)
+
+all_data$isTrueDirect = ifelse(all_data$isTrueDirect, 1, 0)
+all_data[is.na(all_data$isTrueDirect),'isTrueDirect'] = 0
+
+## no info
+all_data$referralPath = NULL
+all_data$campaignCode = NULL
+all_data$adwordsClickInfo.gclId = NULL
+all_data$adwordsClickInfo.isVideoAd = NULL
+
+## revenue is numeric
+all_data$transactionRevenue = as.numeric(all_data$transactionRevenue)
+all_data[is.na(all_data$transactionRevenue),'transactionRevenue'] = 0
+
+## visitnumber to numeric
+all_data$visitNumber = as.numeric(all_data$visitNumber)
+
+## character to category
+all_data$set = as.factor(all_data$set)
+all_data$channelGrouping = as.factor(all_data$channelGrouping)
+all_data$browser = as.factor(all_data$browser)
+all_data$operatingSystem = as.factor(all_data$operatingSystem)
+all_data$deviceCategory = as.factor(all_data$deviceCategory)
+all_data$continent = as.factor(all_data$continent)
+all_data$subContinent = as.factor(all_data$subContinent)
+all_data$country = as.factor(all_data$country)
+all_data$region = as.factor(all_data$region)
+all_data$metro = as.factor(all_data$metro)
+all_data$city = as.factor(all_data$city)
+all_data$networkDomain = as.factor(all_data$networkDomain)
+all_data$campaign = as.factor(all_data$campaign)
+all_data$source = as.factor(all_data$source)
+all_data$medium = as.factor(all_data$medium)
+all_data$keyword = as.factor(all_data$keyword)
+all_data$adContent = as.factor(all_data$adContent)
+all_data$adwordsClickInfo.slot = as.factor(all_data$adwordsClickInfo.slot)
+all_data$adwordsClickInfo.adNetworkType = as.factor(all_data$adwordsClickInfo.adNetworkType)
+
+
+```
+
+
+```{r after cleaning}
+summary(all_data)
+```
+
+```{r savepoint3}
+save(all_data, file = 'input/cleaned_all_data.RData')
+```
+
+
+First Trial with basic regression
+
+```{r basic regression}
+data = all_data[all_data$set== 'train',c(2,3,9,10,11,17,18,19,20,25,30)]
+
+lr = lm(log(transactionRevenue+1) ~ ., data = data)
+
+summary(lr)
+```
+
+```{r prediction}
+newdata = all_data[all_data$set== 'test',]
+
+prediction = predict(lr, newdata = all_data[all_data$set== 'test',])
+newdata$predcition = prediction
+
+submission = newdata[,c(1,31)]
+#submission$fullVisitorId = as.numeric(submission$fullVisitorId)
+submission$predcition = exp(submission$predcition) - 1
+
+
+submission = submission %>% 
+    group_by(fullVisitorId) %>%
+    summarise(PredictedLogRevenue = log(sum(prediction)+1))
+
+
+#library(data.table)
+#submission = data.table(submission)
+
+#submission = submission[, .(PredictedLogRevenue = sum(prediction)), by = fullVisitorId]
+
+#submission$PredictedLogRevenue = log(submission$PredictedLogRevenue + 1)
+
+
+write.csv(submission, 'submission.csv')
+```
+
+
+
