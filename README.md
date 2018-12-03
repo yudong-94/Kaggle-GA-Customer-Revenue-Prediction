@@ -1,4 +1,4 @@
-# Kaggle-GA-Customer-Revenue-Prediction
+# Kaggle GA Customer Revenue Prediction Competition Code Repo
 
 This is the code repo of the Google Analytics Customer Revenue Prediction Competition
 
